@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// momoro_rules 平台库 — 规则与执行记录
+// userId 对应 boboan_net.user.id，跨库无外键
+
+model Rule {
+  id            String     @id @default(cuid())
+  userId        String     @db.VarChar(36)
+  title         String
+  description   String     @db.Text
+  generatedCode String?    @db.Text
+  status        RuleStatus @default(DRAFT)
+  archivedFromStatus RuleStatus?
+  reviewNote    String?    @db.Text
+  reviewedAt    DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  executions RuleExecution[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum RuleStatus {
+  DRAFT
+  GENERATING
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+model RuleExecution {
+  id           String          @id @default(cuid())
+  ruleId       String
+  rule         Rule            @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  userId       String          @db.VarChar(36)
+  status       ExecutionStatus @default(PENDING)
+  resultJson   String?         @db.LongText
+  errorMessage String?         @db.Text
+  durationMs   Int?
+  executedAt   DateTime        @default(now())
+
+  @@index([userId, executedAt])
+  @@index([ruleId])
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  TIMEOUT
+}

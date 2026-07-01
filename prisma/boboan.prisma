@@ -1,0 +1,286 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/boboan-client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("BOBOAN_NET_DB_URL")
+}
+
+model User {
+  id               String             @id @db.VarChar(36)
+  password         String             @db.VarChar(64)
+  salt             String             @db.VarChar(8)
+  email            String?            @db.VarChar(100)
+  status           UserStatus         @default(active)
+  create_at        DateTime           @default(now()) @db.DateTime(6)
+  update_at        DateTime           @default(now()) @updatedAt @db.DateTime(6)
+  nickname         String?            @db.VarChar(100)
+  email_verified   Int                @default(0) @db.TinyInt
+  mobile           String?            @db.VarChar(20)
+  mobile_verified  Int                @default(0) @db.TinyInt
+  picture          String?            @db.VarChar(1000)
+  username         String             @db.VarChar(100)
+  bc_message       bc_message[]
+  bc_server        bc_server[]
+  bc_server_member bc_server_member[]
+  user_roles_role  user_roles_role[]
+
+  @@map("user")
+}
+
+model MomoIngameNews {
+  key       String   @id @db.VarChar(100)
+  map       String?  @db.VarChar(100)
+  object    String   @db.VarChar(100)
+  objectId  String?  @map("objectId") @db.VarChar(100)
+  origin    String   @db.Text
+  subject   String   @db.VarChar(100)
+  ts        BigInt
+  type      Int
+  create_at DateTime @default(now()) @db.DateTime(6)
+  update_at DateTime @default(now()) @updatedAt @db.DateTime(6)
+
+  @@map("momo_ingamenews")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model bc_channel {
+  id               String          @id @db.VarChar(36)
+  server_id        String          @db.VarChar(36)
+  name             String          @db.VarChar(100)
+  topic            String?         @db.VarChar(255)
+  type             bc_channel_type @default(text)
+  parent_id        String?         @db.VarChar(36)
+  position         Int             @default(0)
+  create_at        DateTime        @default(now()) @db.DateTime(6)
+  update_at        DateTime        @default(now()) @db.DateTime(6)
+  deleted_at       DateTime?       @db.DateTime(6)
+  bc_channel       bc_channel?     @relation("bc_channelTobc_channel", fields: [parent_id], references: [id], map: "FK_bc_channel_parent_id")
+  other_bc_channel bc_channel[]    @relation("bc_channelTobc_channel")
+  bc_server        bc_server       @relation(fields: [server_id], references: [id], onDelete: Cascade, map: "FK_bc_channel_server_id")
+  bc_message       bc_message[]
+
+  @@index([parent_id], map: "IDX_bc_channel_parent_id")
+  @@index([server_id, deleted_at, position], map: "IDX_bc_channel_server_deleted_pos")
+  @@index([server_id, position], map: "IDX_bc_channel_server_pos")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model bc_message {
+  id               String       @id @db.VarChar(36)
+  server_id        String       @db.VarChar(36)
+  channel_id       String       @db.VarChar(36)
+  author_id        String       @db.VarChar(36)
+  content          String       @db.MediumText
+  reply_to         String?      @db.VarChar(36)
+  edited_at        DateTime?    @db.DateTime(6)
+  deleted_at       DateTime?    @db.DateTime(6)
+  create_at        DateTime     @default(now()) @db.DateTime(6)
+  update_at        DateTime     @default(now()) @db.DateTime(6)
+  user             User         @relation(fields: [author_id], references: [id], onDelete: Cascade, map: "FK_bc_message_author_id")
+  bc_channel       bc_channel   @relation(fields: [channel_id], references: [id], onDelete: Cascade, map: "FK_bc_message_channel_id")
+  bc_message       bc_message?  @relation("bc_messageTobc_message", fields: [reply_to], references: [id], map: "FK_bc_message_reply_to")
+  other_bc_message bc_message[] @relation("bc_messageTobc_message")
+  bc_server        bc_server    @relation(fields: [server_id], references: [id], onDelete: Cascade, map: "FK_bc_message_server_id")
+
+  @@index([author_id], map: "IDX_bc_message_author_id")
+  @@index([channel_id, create_at], map: "IDX_bc_message_channel_create_at")
+  @@index([channel_id, deleted_at, create_at], map: "IDX_bc_message_channel_deleted_create_at")
+  @@index([deleted_at], map: "IDX_bc_message_deleted_at")
+  @@index([reply_to], map: "IDX_bc_message_reply_to")
+  @@index([server_id, channel_id], map: "IDX_bc_message_server_channel")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model bc_server {
+  id               String             @id @db.VarChar(36)
+  name             String             @db.VarChar(100)
+  description      String?            @db.VarChar(255)
+  icon             String?            @db.VarChar(1000)
+  owner_id         String             @db.VarChar(36)
+  is_public        Int                @default(1) @db.TinyInt
+  invite_code      String?            @db.VarChar(32)
+  create_at        DateTime           @default(now()) @db.DateTime(6)
+  update_at        DateTime           @default(now()) @db.DateTime(6)
+  bc_channel       bc_channel[]
+  bc_message       bc_message[]
+  user             User               @relation(fields: [owner_id], references: [id], onDelete: Cascade, map: "FK_bc_server_owner_id")
+  bc_server_member bc_server_member[]
+
+  @@index([is_public], map: "IDX_bc_server_is_public")
+  @@index([name], map: "IDX_bc_server_name")
+  @@index([owner_id], map: "IDX_bc_server_owner_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model bc_server_member {
+  id        String                  @id @db.VarChar(36)
+  server_id String                  @db.VarChar(36)
+  user_id   String                  @db.VarChar(36)
+  roles     Json?
+  status    bc_server_member_status @default(offline)
+  create_at DateTime                @default(now()) @db.DateTime(6)
+  update_at DateTime                @default(now()) @db.DateTime(6)
+  bc_server bc_server               @relation(fields: [server_id], references: [id], onDelete: Cascade, map: "FK_bc_server_member_server_id")
+  user      User                    @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "FK_bc_server_member_user_id")
+
+  @@unique([server_id, user_id], map: "UQ_bc_server_member_server_user")
+  @@index([server_id], map: "IDX_bc_server_member_server_id")
+  @@index([user_id], map: "IDX_bc_server_member_user_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model kook_bot_spoils {
+  id           Int      @id @default(autoincrement())
+  kook_user_id String   @db.VarChar(20)
+  item         String   @db.VarChar(20)
+  status       String   @default("0") @db.VarChar(255)
+  zeny         Int?
+  menbers      String   @db.Text
+  create_at    DateTime @default(now()) @db.DateTime(6)
+  update_at    DateTime @default(now()) @db.DateTime(6)
+}
+
+model migrations {
+  id        Int    @id @default(autoincrement())
+  timestamp BigInt
+  name      String @db.VarChar(255)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model oa_google_account {
+  id             Int      @id @default(autoincrement())
+  sub            String   @unique(map: "IDX_62d7ac0f2f3dd55df57efb51a7") @db.VarChar(255)
+  email          String   @db.VarChar(100)
+  email_verified Int      @db.TinyInt
+  name           String   @db.VarChar(100)
+  given_name     String   @db.VarChar(50)
+  family_name    String   @db.VarChar(50)
+  user_id        String   @db.VarChar(36)
+  create_at      DateTime @default(now()) @db.DateTime(6)
+  update_at      DateTime @default(now()) @db.DateTime(6)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model permission {
+  id                          String                        @id @db.VarChar(36)
+  name                        String                        @db.VarChar(20)
+  description                 String                        @db.VarChar(100)
+  resource                    String                        @db.VarChar(100)
+  action                      String                        @db.VarChar(100)
+  isSystem                    Int                           @db.TinyInt
+  create_at                   DateTime                      @default(now()) @db.DateTime(6)
+  update_at                   DateTime                      @default(now()) @db.DateTime(6)
+  role_permissions_permission role_permissions_permission[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model role {
+  id                          String                        @id @db.VarChar(36)
+  name                        String                        @db.VarChar(20)
+  description                 String                        @db.VarChar(100)
+  isSystem                    Int                           @db.TinyInt
+  create_at                   DateTime                      @default(now()) @db.DateTime(6)
+  update_at                   DateTime                      @default(now()) @db.DateTime(6)
+  role_permissions_permission role_permissions_permission[]
+  user_roles_role             user_roles_role[]
+}
+
+model role_permissions_permission {
+  roleId       String     @db.VarChar(36)
+  permissionId String     @db.VarChar(36)
+  role         role       @relation(fields: [roleId], references: [id], onDelete: Cascade, map: "FK_b36cb2e04bc353ca4ede00d87b9")
+  permission   permission @relation(fields: [permissionId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_bfbc9e263d4cea6d7a8c9eb3ad2")
+
+  @@id([roleId, permissionId])
+  @@index([roleId], map: "IDX_b36cb2e04bc353ca4ede00d87b")
+  @@index([permissionId], map: "IDX_bfbc9e263d4cea6d7a8c9eb3ad")
+}
+
+model user_roles_role {
+  userId String @db.VarChar(36)
+  roleId String @db.VarChar(36)
+  role   role   @relation(fields: [roleId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_4be2f7adf862634f5f803d246b8")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, map: "FK_5f9286e6c25594c6b88c108db77")
+
+  @@id([userId, roleId])
+  @@index([roleId], map: "IDX_4be2f7adf862634f5f803d246b")
+  @@index([userId], map: "IDX_5f9286e6c25594c6b88c108db7")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model ut_once_context {
+  code       String    @id @db.VarChar(36)
+  context    Json
+  ttl        Int
+  uniqueId   String?   @db.VarChar(1000)
+  create_at  DateTime  @default(now()) @db.DateTime(6)
+  update_at  DateTime  @default(now()) @db.DateTime(6)
+  expires_at DateTime? @db.DateTime(0)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model verify_code {
+  id          Int                 @id @default(autoincrement())
+  verify_code String              @db.VarChar(100)
+  type        verify_code_type
+  operate     verify_code_operate
+  target      String              @db.VarChar(255)
+  create_at   DateTime            @default(now()) @db.DateTime(6)
+  update_at   DateTime            @default(now()) @db.DateTime(6)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model verify_code_log {
+  id          Int                     @id @default(autoincrement())
+  verify_code String                  @db.VarChar(100)
+  type        verify_code_log_type
+  operate     verify_code_log_operate
+  target      String                  @db.VarChar(255)
+  ip          String                  @db.VarChar(50)
+  create_at   DateTime                @default(now()) @db.DateTime(6)
+  update_at   DateTime                @default(now()) @db.DateTime(6)
+}
+
+enum UserStatus {
+  active
+  inactive
+  locked
+}
+
+enum verify_code_type {
+  email @map("1")
+  sms   @map("2")
+}
+
+enum verify_code_log_type {
+  email @map("1")
+  sms   @map("2")
+}
+
+enum verify_code_operate {
+  signup         @map("1")
+  reset_password @map("2")
+  login          @map("3")
+}
+
+enum verify_code_log_operate {
+  signup         @map("1")
+  reset_password @map("2")
+  login          @map("3")
+}
+
+enum bc_channel_type {
+  text
+  voice
+  category
+}
+
+enum bc_server_member_status {
+  online
+  offline
+  idle
+  dnd
+}
