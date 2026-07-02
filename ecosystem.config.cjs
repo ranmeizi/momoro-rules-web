@@ -2,8 +2,15 @@
  * PM2 生产启动配置
  *
  * 首次部署：
- *   pnpm install && pnpm build
+ *   corepack enable
+ *   pnpm install --frozen-lockfile
+ *   pnpm build
  *   pm2 start ecosystem.config.cjs
+ *
+ * 若 pnpm install 报 Invalid Version，升级 pnpm 并清理后重装：
+ *   npm install -g pnpm@10.27.0
+ *   rm -rf node_modules
+ *   pnpm install --frozen-lockfile
  *
  * 更新后：
  *   pnpm build && pm2 reload ecosystem.config.cjs --update-env

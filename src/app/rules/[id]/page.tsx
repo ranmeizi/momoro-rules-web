@@ -115,6 +115,10 @@ export default async function RuleDetailPage({
               代码经人工/AI 审核后方可执行
             </p>
           </>
+        ) : rule.status === "GENERATING" ? (
+          <p className="text-sm text-[var(--color-accent)]">
+            AI 正在生成代码，完成后将自动刷新展示…
+          </p>
         ) : (
           <p className="text-sm text-[var(--color-muted)]">
             暂无代码。请点击右上角「重新生成代码」，或重新创建一条规则。

@@ -27,7 +27,10 @@ export default function NewRulePage() {
         setError(data.error ?? "创建失败");
         return;
       }
-      router.push(`/rules/${data.rule.id}`);
+      if (data.rule?.id) {
+        router.push(`/rules/${data.rule.id}`);
+        router.refresh();
+      }
     } catch {
       setError("网络错误");
     } finally {
@@ -90,8 +93,11 @@ export default function NewRulePage() {
         )}
 
         <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? "AI 生成中..." : "生成规则代码"}
+          {loading ? "提交中…" : "生成规则代码"}
         </button>
+        <p className="text-xs text-[var(--color-muted)]">
+          提交后将立即进入规则详情页，AI 在后台生成代码，无需等待
+        </p>
       </form>
     </div>
   );

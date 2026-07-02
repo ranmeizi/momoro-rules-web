@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
-import { generateRuleCode } from "@/lib/ai/generate";
+import { scheduleRuleCodeGeneration } from "@/lib/ai/regenerate-rule";
 
 const CreateRuleSchema = z.object({
   title: z.string().min(1).max(100),
@@ -43,30 +43,21 @@ export async function POST(req: NextRequest) {
         userId: session.sub,
         title: body.title,
         description: body.description,
-        status: "DRAFT",
+        status: "GENERATING",
+        reviewNote: "AI 正在生成代码…",
       },
     });
 
-    const { code, validation } = await generateRuleCode(
-      body.description,
-      rule.id
+    scheduleRuleCodeGeneration(rule.id, body.description);
+
+    return NextResponse.json(
+      {
+        rule,
+        message: "规则已创建，代码生成中",
+        polling: true,
+      },
+      { status: 202 }
     );
-
-    const updated = await prisma.rule.update({
-      where: { id: rule.id },
-      data: {
-        generatedCode: code,
-        status: validation.valid ? "PENDING_REVIEW" : "DRAFT",
-        reviewNote: validation.valid
-          ? null
-          : `代码校验未通过: ${validation.errors.join("; ")}`,
-      },
-    });
-
-    return NextResponse.json({
-      rule: updated,
-      validation,
-    });
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: "参数无效" }, { status: 400 });
